@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Employee Scheduler</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, select, button { margin: 5px; padding: 5px; }
+    .day-selects { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .output { margin-top: 20px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>Employee Scheduler</h2>
+  
+  <input id="nameInput" type="text" placeholder="Employee Name" />
+  <div class="day-selects" id="shiftInputs"></div>
+  <br/>
+  <button onclick="addEmployee()">Add Employee</button>
+  <button onclick="generateSchedule()">Generate Schedule</button>
+
+  <div class="output" id="output"></div>
+
+  <script>
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const shifts = ["morning", "afternoon", "evening"];
+    const employees = [];
+
+    // Populate shift inputs
+    const shiftInputs = document.getElementById('shiftInputs');
+    const shiftSelectors = {};
+    days.forEach(day => {
+      const select = document.createElement('select');
+      select.innerHTML = `<option value="">${day}</option>` + shifts.map(s => `<option value="${s}">${s}</option>`).join('');
+      shiftInputs.appendChild(select);
+      shiftSelectors[day] = select;
+    });
+
+    function addEmployee() {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) return alert("Please enter a name");
+
+      const preferences = {};
+      days.forEach(day => {
+        const val = shiftSelectors[day].value;
+        if (val) preferences[day] = val;
+        shiftSelectors[day].value = ""; // reset
+      });
+
+      employees.push({ name, preferences });
+      document.getElementById('nameInput').value = "";
+
+      alert(`Added ${name}`);
+    }
+
+    function generateSchedule() {
+      const schedule = {};
+      const workedDays = {};
+      days.forEach(day => {
+        schedule[day] = {};
+        shifts.forEach(shift => schedule[day][shift] = []);
+      });
+
+      employees.forEach(emp => workedDays[emp.name] = 0);
+
+      // Assign preferred shifts
+      employees.forEach(emp => {
+        for (const day in emp.preferences) {
+          const shift = emp.preferences[day];
+          if (workedDays[emp.name] >= 5) continue;
+
+          if (schedule[day][shift].length < 2 && !Object.values(schedule[day]).flat().includes(emp.name)) {
+            schedule[day][shift].push(emp.name);
+            workedDays[emp.name]++;
+          } else {
+            // Try other shifts
+            for (const alt of shifts) {
+              if (alt !== shift && schedule[day][alt].length < 2 && !Object.values(schedule[day]).flat().includes(emp.name)) {
+                schedule[day][alt].push(emp.name);
+                workedDays[emp.name]++;
+                break;
+              }
+            }
+          }
+        }
+      });
+
+      // Fill missing spots
+      days.forEach(day => {
+        shifts.forEach(shift => {
+          while (schedule[day][shift].length < 2) {
+            const candidates = employees.filter(emp =>
+              workedDays[emp.name] < 5 &&
+              !Object.values(schedule[day]).flat().includes(emp.name)
+            );
+            if (candidates.length === 0) break;
+            const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+            schedule[day][shift].push(chosen.name);
+            workedDays[chosen.name]++;
+          }
+        });
+      });
+
+      // Display output
+      let result = "Final Weekly Schedule:\n";
+      days.forEach(day => {
+        result += `\n${day}:\n`;
+        shifts.forEach(shift => {
+          const names = schedule[day][shift];
+          result += `  ${shift}: ${names.join(', ') || 'No one assigned'}\n`;
+        });
+      });
+
+      document.getElementById('output').textContent = result;
+    }
+  </script>
+</body>
+</html>
